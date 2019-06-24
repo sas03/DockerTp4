@@ -1,26 +1,6 @@
-node {
-   def commit_id
-   stage('Preparation') {
-     checkout scm
-     sh "git rev-parse --short HEAD > .git/commit-id"                        
-     commit_id = readFile('.git/commit-id').trim()
-   }
-   
-   stage('install') {
-     nodejs(nodeJSInstallationName: 'NodeJS9') {
-       sh 'npm install --only=dev'
-     }
-   }
-   
-   stage('test') {
-     nodejs(nodeJSInstallationName: 'NodeJS9') {
-       sh 'npm test'
-     }
-   }
-   
-   stage('docker build/push') {
-     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub') {
-       def app = docker.build("akasam/nodedemoapp:${commit_id}", '.').push()
-     }
-   }
-}
+docker container run --rm --name maria -v $(pwd)/create.sql:/docker-entrypoint-initdb.d/create.sql -p 3306:3306 --env MYSQL_ROOT_PASSWORD=azerty -d mariadb
+
+docker image build -t php:fpm-mysqli php-fpm-mysqli/
+docker container run --link maria --rm --name php -v $(pwd)/monsite:/var/www/monsite -d php:fpm-mysqli
+
+docker container run --link php --rm --name web -v $(pwd)/monsite:/var/www/monsite -v $(pwd)/default.conf:/etc/nginx/conf.d/default.conf -p 8080:80 -d nginx
